@@ -5,6 +5,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 dotenv.config();
 
@@ -15,9 +18,77 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'groove_raw_secret_key_super_secure_9921_vinyl_os';
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+// =================== MONGODB CONNECTION & SCHEMAS ===================
+let isMongoConnected = false;
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (MONGODB_URI) {
+  mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000
+  }).then(() => {
+    isMongoConnected = true;
+    console.log('📦 [MongoDB Atlas] Connected successfully to Groove Music Database!');
+  }).catch(err => {
+    console.warn('⚠️ [MongoDB Atlas] Connection warning:', err.message);
+  });
+}
+
+// User Schema (Login info)
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true, trim: true },
+  email: { type: String, trim: true, lowercase: true },
+  password: { type: String, required: true },
+  displayName: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now }
+});
+
+// Playlist / Crate Schema (User playlists & songs)
+const playlistSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  id: { type: String, required: true }, // e.g. "crate-custom-12345"
+  title: { type: String, required: true },
+  subtitle: { type: String, default: 'CUSTOM PLAYLIST' },
+  badge: { type: String, default: 'USER CRATE' },
+  genre: { type: String, default: 'PERSONAL MIX' },
+  rpm: { type: String, default: '33⅓ RPM' },
+  cover: { type: String, default: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=200&fit=crop' },
+  isCustom: { type: Boolean, default: true },
+  tracks: [{
+    id: { type: String, required: true }, // YouTube video ID
+    cut: { type: String, default: '01' },
+    title: { type: String, required: true },
+    artist: { type: String, default: 'UNKNOWN ARTIST' },
+    duration: { type: String, default: '03:45' },
+    thumbnail: { type: String, default: '' }
+  }],
+  updatedAt: { type: Date, default: Date.now }
+});
+
+const User = mongoose.model('User', userSchema);
+const Playlist = mongoose.model('Playlist', playlistSchema);
+
+// Optional JWT Auth Middleware
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ success: false, error: 'NO_TOKEN_PROVIDED' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).json({ success: false, error: 'INVALID_OR_EXPIRED_TOKEN' });
+    }
+    req.user = decoded; // { id, username }
+    next();
+  });
+}
 
 // In-memory rooms for "Groove Together"
 // Key: 4-character code (uppercase alphanumeric e.g. "7K2A")
@@ -313,6 +384,252 @@ app.get('/api/crates', (req, res) => {
     count: SERVER_CRATES.length,
     crates: SERVER_CRATES
   });
+});
+
+// =================== MONGODB USER AUTHENTICATION & PLAYLIST API ===================
+
+// Register user
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password, email } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: 'USERNAME_AND_PASSWORD_REQUIRED' });
+    }
+
+    const cleanUsername = username.trim().toLowerCase();
+    if (cleanUsername.length < 3) {
+      return res.status(400).json({ success: false, error: 'USERNAME_TOO_SHORT' });
+    }
+    if (password.length < 4) {
+      return res.status(400).json({ success: false, error: 'PASSWORD_TOO_SHORT' });
+    }
+
+    if (!isMongoConnected) {
+      return res.status(503).json({ success: false, error: 'DATABASE_OFFLINE' });
+    }
+
+    const existing = await User.findOne({ username: cleanUsername });
+    if (existing) {
+      return res.status(409).json({ success: false, error: 'USERNAME_ALREADY_EXISTS' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = new User({
+      username: cleanUsername,
+      email: (email || '').trim().toLowerCase(),
+      password: hashedPassword,
+      displayName: username.trim().toUpperCase()
+    });
+    await newUser.save();
+
+    // Create initial starter crate for new user in MongoDB
+    const defaultCrate = new Playlist({
+      userId: newUser._id,
+      id: `crate-${Date.now()}`,
+      title: `${newUser.displayName} // CRATE 01`,
+      subtitle: 'PERSONAL VINYL COLLECTION',
+      badge: 'MY CRATE',
+      genre: 'FAVORITES',
+      rpm: '33⅓ RPM',
+      cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=200&fit=crop',
+      tracks: [
+        {
+          id: 'fHI8X483mQw',
+          cut: '01',
+          title: 'AFTER HOURS',
+          artist: 'THE WEEKND',
+          duration: '06:01',
+          thumbnail: 'https://i.ytimg.com/vi/fHI8X483mQw/hqdefault.jpg'
+        }
+      ]
+    });
+    await defaultCrate.save();
+
+    const token = jwt.sign(
+      { id: newUser._id, username: newUser.username },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.json({
+      success: true,
+      message: 'REGISTRATION_SUCCESSFUL',
+      token,
+      user: {
+        id: newUser._id,
+        username: newUser.username,
+        displayName: newUser.displayName
+      }
+    });
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ success: false, error: 'SERVER_ERROR: ' + err.message });
+  }
+});
+
+// Login user
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: 'USERNAME_AND_PASSWORD_REQUIRED' });
+    }
+
+    if (!isMongoConnected) {
+      return res.status(503).json({ success: false, error: 'DATABASE_OFFLINE' });
+    }
+
+    const cleanUsername = username.trim().toLowerCase();
+    const user = await User.findOne({ username: cleanUsername });
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'INVALID_CREDENTIALS' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, error: 'INVALID_CREDENTIALS' });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        displayName: user.displayName || user.username.toUpperCase()
+      }
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ success: false, error: 'SERVER_ERROR: ' + err.message });
+  }
+});
+
+// Get current logged-in user profile
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'USER_NOT_FOUND' });
+    }
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get all playlists & tracks for authenticated user
+app.get('/api/user/playlists', authenticateToken, async (req, res) => {
+  try {
+    if (!isMongoConnected) {
+      return res.status(503).json({ success: false, error: 'DATABASE_OFFLINE' });
+    }
+    const playlists = await Playlist.find({ userId: req.user.id }).sort({ updatedAt: -1 });
+    res.json({
+      success: true,
+      count: playlists.length,
+      playlists: playlists.map(p => ({
+        id: p.id,
+        title: p.title,
+        subtitle: p.subtitle,
+        badge: p.badge,
+        genre: p.genre,
+        rpm: p.rpm,
+        cover: p.cover,
+        isCustom: true,
+        tracks: p.tracks
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Save or sync all playlists/crates for authenticated user
+app.post('/api/user/sync-crates', authenticateToken, async (req, res) => {
+  try {
+    if (!isMongoConnected) {
+      return res.status(503).json({ success: false, error: 'DATABASE_OFFLINE' });
+    }
+
+    const incomingCrates = Array.isArray(req.body.crates) ? req.body.crates : [];
+    const userId = req.user.id;
+
+    for (const crate of incomingCrates) {
+      if (!crate.id || !crate.title) continue;
+
+      const cleanTracks = (Array.isArray(crate.tracks) ? crate.tracks : []).map((t, idx) => ({
+        id: t.id,
+        cut: t.cut || String(idx + 1).padStart(2, '0'),
+        title: (t.title || 'UNTITLED TRACK').toUpperCase(),
+        artist: (t.artist || 'UNKNOWN ARTIST').toUpperCase(),
+        duration: t.duration || '03:45',
+        thumbnail: t.thumbnail || `https://i.ytimg.com/vi/${t.id}/hqdefault.jpg`
+      }));
+
+      await Playlist.findOneAndUpdate(
+        { userId, id: crate.id },
+        {
+          userId,
+          id: crate.id,
+          title: (crate.title || 'MY CRATE').toUpperCase(),
+          subtitle: crate.subtitle || 'CUSTOM USER PLAYLIST',
+          badge: crate.badge || 'SAVED CRATE',
+          genre: crate.genre || 'PERSONAL MIX',
+          rpm: crate.rpm || '33⅓ RPM',
+          cover: cleanTracks[0]?.thumbnail || crate.cover || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=200&fit=crop',
+          isCustom: true,
+          tracks: cleanTracks,
+          updatedAt: new Date()
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    const allUserPlaylists = await Playlist.find({ userId }).sort({ updatedAt: -1 });
+
+    res.json({
+      success: true,
+      message: 'PLAYLISTS_SYNCED_TO_MONGODB',
+      count: allUserPlaylists.length,
+      playlists: allUserPlaylists.map(p => ({
+        id: p.id,
+        title: p.title,
+        subtitle: p.subtitle,
+        badge: p.badge,
+        genre: p.genre,
+        rpm: p.rpm,
+        cover: p.cover,
+        isCustom: true,
+        tracks: p.tracks
+      }))
+    });
+  } catch (err) {
+    console.error('Crates sync error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete a user playlist from MongoDB
+app.delete('/api/user/playlist/:id', authenticateToken, async (req, res) => {
+  try {
+    if (!isMongoConnected) {
+      return res.status(503).json({ success: false, error: 'DATABASE_OFFLINE' });
+    }
+    const crateId = req.params.id;
+    await Playlist.deleteOne({ userId: req.user.id, id: crateId });
+    res.json({ success: true, message: 'PLAYLIST_DELETED_FROM_MONGODB' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ================= GROOVE TOGETHER (ROOMS & SYNC) API =================

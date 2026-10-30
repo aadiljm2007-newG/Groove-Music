@@ -669,6 +669,127 @@
     </div>
   </div>
 
+  <!-- ================= MONGO DB AUTH & ACCOUNT MODAL ================= -->
+  <div id="auth-modal-backdrop" class="fixed inset-0 bg-black/80 z-[99999] hidden opacity-0 transition-opacity duration-200 flex items-center justify-center p-4">
+    <div id="auth-modal" class="w-full max-w-md bg-surface-container-lowest border-[4px] border-black shadow-[10px_10px_0px_#000000] overflow-hidden transform scale-95 transition-transform duration-200">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-3 border-b-[3px] border-black bg-tertiary-container flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-[22px] text-black">database</span>
+          <div>
+            <h3 class="font-headline-sm text-sm font-black uppercase text-black leading-none">
+              GROOVE ARCHIVE // MONGODB ATLAS
+            </h3>
+            <p class="font-data-mono text-[9px] text-black/80 uppercase mt-0.5 font-bold">
+              CLOUD SYNC PLAYLISTS, TRACKS & DJ PROFILE
+            </p>
+          </div>
+        </div>
+        <button type="button" onclick="closeAuthModal()" class="p-1 bg-black text-white hover:bg-white hover:text-black border-[2px] border-black transition-colors flex items-center justify-center cursor-pointer">
+          <span class="material-symbols-outlined text-[16px]">close</span>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 flex flex-col gap-4">
+        
+        <!-- LOGGED OUT VIEW: TABS + FORM -->
+        <div id="auth-logged-out-view">
+          <!-- Auth Mode Tabs -->
+          <div class="grid grid-cols-2 gap-2 p-1 bg-black/10 border-[2px] border-black mb-4">
+            <button type="button" id="auth-tab-login" onclick="switchAuthTab('login')" class="py-1.5 px-3 bg-black text-white font-headline-sm text-xs font-black uppercase text-center transition-all cursor-pointer">
+              LOG IN ⚡
+            </button>
+            <button type="button" id="auth-tab-register" onclick="switchAuthTab('register')" class="py-1.5 px-3 bg-transparent text-black hover:bg-black/10 font-headline-sm text-xs font-black uppercase text-center transition-all cursor-pointer">
+              CREATE ACCOUNT ✦
+            </button>
+          </div>
+
+          <!-- Auth Status Banner -->
+          <div id="auth-status-msg" class="hidden mb-3 p-2 font-data-mono text-[11px] font-bold border-[2px] border-black"></div>
+
+          <!-- Form -->
+          <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="flex flex-col gap-3">
+            <div>
+              <label for="auth-username" class="block font-data-mono text-[10px] font-bold uppercase text-black mb-1">
+                DJ USERNAME / HANDLE
+              </label>
+              <input type="text" id="auth-username" required autocomplete="username" placeholder="e.g. DJ_VINYL_99" class="w-full px-3 py-2 bg-white border-[2px] border-black font-data-mono text-xs uppercase focus:bg-amber-50 focus:outline-none shadow-[2px_2px_0px_#000000]"/>
+            </div>
+
+            <div id="auth-email-field" class="hidden">
+              <label for="auth-email" class="block font-data-mono text-[10px] font-bold uppercase text-black mb-1">
+                EMAIL ADDRESS (OPTIONAL)
+              </label>
+              <input type="email" id="auth-email" autocomplete="email" placeholder="dj@groove.local" class="w-full px-3 py-2 bg-white border-[2px] border-black font-data-mono text-xs focus:bg-amber-50 focus:outline-none shadow-[2px_2px_0px_#000000]"/>
+            </div>
+
+            <div>
+              <label for="auth-password" class="block font-data-mono text-[10px] font-bold uppercase text-black mb-1">
+                PASSWORD (SECURE HASH)
+              </label>
+              <input type="password" id="auth-password" required autocomplete="current-password" placeholder="••••••••" class="w-full px-3 py-2 bg-white border-[2px] border-black font-data-mono text-xs focus:bg-amber-50 focus:outline-none shadow-[2px_2px_0px_#000000]"/>
+            </div>
+
+            <button type="submit" id="auth-submit-btn" class="mt-2 w-full py-2.5 bg-black text-amber-300 hover:bg-amber-400 hover:text-black border-[3px] border-black font-headline-sm text-xs font-black uppercase tracking-wider shadow-[3px_3px_0px_#000000] active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer">
+              LOG IN TO CLOUD CRATES ⚡
+            </button>
+          </form>
+
+          <p class="font-data-mono text-[9px] text-black/60 uppercase text-center mt-3 font-semibold">
+            SECURED WITH JWT & BCRYPT ON MONGODB ATLAS CLOUD
+          </p>
+        </div>
+
+        <!-- LOGGED IN VIEW: PROFILE & CLOUD SYNC -->
+        <div id="auth-logged-in-view" class="hidden flex flex-col gap-3">
+          <div class="p-4 bg-amber-100 border-[3px] border-black shadow-[3px_3px_0px_#000000] flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 bg-black text-amber-300 border-[2px] border-black flex items-center justify-center font-headline-sm text-lg font-black shadow-[2px_2px_0px_#000000]">
+                <span id="auth-profile-initial">DJ</span>
+              </div>
+              <div>
+                <span class="px-1.5 py-0.5 bg-black text-amber-300 font-data-mono text-[8px] font-black uppercase tracking-wider">
+                  CLOUD CONNECTED
+                </span>
+                <h4 id="auth-profile-username" class="font-headline-sm text-sm font-black uppercase text-black mt-0.5">
+                  DJ_USER
+                </h4>
+                <p id="auth-profile-details" class="font-data-mono text-[9px] text-black/70 font-bold uppercase">
+                  MONGODB ATLAS SYNC ACTIVE
+                </p>
+              </div>
+            </div>
+            <span class="w-3 h-3 rounded-full bg-emerald-500 border border-black shadow-[1px_1px_0px_#000000]"></span>
+          </div>
+
+          <div class="p-3 bg-surface-container-low border-[2px] border-black flex flex-col gap-1.5">
+            <div class="flex items-center justify-between font-data-mono text-[10px] font-bold">
+              <span>CLOUD PLAYLISTS ARCHIVE:</span>
+              <span id="auth-crates-cloud-count" class="px-1.5 bg-black text-white">0 CRATES</span>
+            </div>
+            <div class="flex items-center justify-between font-data-mono text-[10px] font-bold">
+              <span>DATABASE STATUS:</span>
+              <span class="text-emerald-700 uppercase">ONLINE (groove_music)</span>
+            </div>
+          </div>
+
+          <div class="flex gap-2 mt-1">
+            <button type="button" onclick="syncAllCratesToCloud(true)" class="flex-1 py-2 bg-amber-400 text-black border-[2px] border-black font-label-md text-[11px] font-black uppercase shadow-[2px_2px_0px_#000000] hover:bg-amber-300 active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer text-center">
+              ☁️ SYNC ALL CRATES NOW
+            </button>
+            <button type="button" onclick="handleLogout()" class="px-3.5 py-2 bg-black text-white hover:bg-red-600 border-[2px] border-black font-label-md text-[11px] font-black uppercase shadow-[2px_2px_0px_#000000] active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer">
+              LOG OUT 🚪
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
   <!-- ================= MAIN CONTENT STAGE ================= -->
   <main class="w-full px-4 md:px-8 max-w-[1550px] mx-auto">
     
@@ -721,6 +842,13 @@
                     <span id="together-live-dot" class="w-2 h-2 rounded-full bg-black/40"></span>
                     <span class="material-symbols-outlined text-[16px]">groups</span>
                     <span id="together-btn-text">[ 🤝 GROOVE TOGETHER ]</span>
+                  </span>
+                </button>
+                <button id="auth-account-btn" onclick="openAuthModal()" class="px-3.5 py-1.5 bg-tertiary-container text-black border-[2px] border-black font-headline-sm text-xs uppercase font-black tracking-tight shadow-[2px_2px_0px_#111111] hover:bg-amber-300 hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer" type="button" title="MongoDB Account & Cloud Playlists">
+                  <span class="flex items-center gap-1.5">
+                    <span id="auth-user-badge" class="w-2 h-2 rounded-full bg-black/30"></span>
+                    <span class="material-symbols-outlined text-[16px]">account_circle</span>
+                    <span id="auth-btn-label">[ 👤 LOG IN / SIGN UP ]</span>
                   </span>
                 </button>
               </div>
@@ -2304,6 +2432,10 @@
       } catch (e) {
         console.warn('Failed to save custom crates to storage:', e);
       }
+      // If user is authenticated with MongoDB, auto-sync to cloud in background
+      if (typeof syncAllCratesToCloud === 'function' && getAuthToken()) {
+        syncAllCratesToCloud(false);
+      }
     }
 
     // Filter crates list by keyword
@@ -2312,7 +2444,7 @@
       renderCratesDrawer();
     };
 
-    // Fetch and render curated crates & playlists
+    // Fetch and render curated crates & playlists (loads from MongoDB if logged in, with local fallback)
     async function fetchAndRenderCrates() {
       try {
         let serverCrates = [];
@@ -2324,7 +2456,30 @@
           console.warn('Could not reach /api/crates, using fallback', netErr);
         }
 
-        const customCrates = getStoredCustomCrates();
+        let customCrates = getStoredCustomCrates();
+
+        // If user is logged in, fetch their cloud playlists from MongoDB Atlas
+        const token = (typeof getAuthToken === 'function') ? getAuthToken() : null;
+        if (token) {
+          try {
+            const cloudRes = await fetch('/api/user/playlists', {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (cloudRes.ok) {
+              const cloudData = await cloudRes.json();
+              if (Array.isArray(cloudData.playlists) && cloudData.playlists.length > 0) {
+                // Merge cloud playlists with any local custom crates
+                const cloudIds = new Set(cloudData.playlists.map(p => p.id));
+                const localOnly = customCrates.filter(c => !cloudIds.has(c.id));
+                customCrates = [...cloudData.playlists, ...localOnly];
+                localStorage.setItem(CUSTOM_CRATES_STORAGE_KEY, JSON.stringify(customCrates));
+                console.log(`[MongoDB] Loaded ${cloudData.playlists.length} playlists from MongoDB Atlas`);
+              }
+            }
+          } catch (cloudErr) {
+            console.warn('[MongoDB] Cloud playlists fetch error, using local fallback:', cloudErr);
+          }
+        }
         
         // Merge custom crates first, then server crates that aren't overwritten
         const customIds = new Set(customCrates.map(c => c.id));
@@ -2342,6 +2497,7 @@
         }
 
         renderCratesDrawer();
+        if (typeof updateAuthUI === 'function') updateAuthUI();
       } catch (err) {
         console.error('Failed to load crates list:', err);
       }
@@ -3084,6 +3240,15 @@
 
       const customCrates = availableCrates.filter(c => c.isCustom);
       saveCustomCrates(customCrates);
+
+      // If authenticated, also delete from MongoDB Atlas
+      const token = (typeof getAuthToken === 'function') ? getAuthToken() : null;
+      if (token) {
+        fetch(`/api/user/playlist/${encodeURIComponent(crateId)}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(e => console.warn('Cloud delete warning:', e));
+      }
 
       // If the deleted crate was active, switch to first remaining
       if (currentCrateId === crateId || !availableCrates.find(c => c.id === currentCrateId)) {
@@ -4407,6 +4572,285 @@
         }
       });
     }
+
+    // ================= MONGODB ATLAS USER AUTHENTICATION & CLOUD SYNC =================
+    const AUTH_TOKEN_KEY = 'groove_auth_token';
+    const AUTH_USER_KEY = 'groove_user_data';
+    let currentAuthUser = null;
+    let authCurrentTab = 'login';
+
+    function getAuthToken() {
+      return localStorage.getItem(AUTH_TOKEN_KEY) || null;
+    }
+
+    function setAuthSession(token, user) {
+      if (token && user) {
+        localStorage.setItem(AUTH_TOKEN_KEY, token);
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+        currentAuthUser = user;
+      } else {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        localStorage.removeItem(AUTH_USER_KEY);
+        currentAuthUser = null;
+      }
+      updateAuthUI();
+    }
+
+    function initAuthSession() {
+      const storedUser = localStorage.getItem(AUTH_USER_KEY);
+      const token = getAuthToken();
+      if (token && storedUser) {
+        try {
+          currentAuthUser = JSON.parse(storedUser);
+        } catch (e) {
+          currentAuthUser = null;
+        }
+      }
+      updateAuthUI();
+      // Verify token in background
+      if (token) {
+        fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.success && data.user) {
+            currentAuthUser = data.user;
+            localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
+            updateAuthUI();
+          } else {
+            console.warn('[MongoDB Auth] Token expired or invalid, clearing session');
+            setAuthSession(null, null);
+          }
+        })
+        .catch(err => console.warn('[MongoDB Auth] Check auth error:', err));
+      }
+    }
+
+    function updateAuthUI() {
+      const authBtnLabel = document.getElementById('auth-btn-label');
+      const authUserBadge = document.getElementById('auth-user-badge');
+      const loggedOutView = document.getElementById('auth-logged-out-view');
+      const loggedInView = document.getElementById('auth-logged-in-view');
+      const profileUsername = document.getElementById('auth-profile-username');
+      const profileInitial = document.getElementById('auth-profile-initial');
+      const profileDetails = document.getElementById('auth-profile-details');
+      const cloudCountEl = document.getElementById('auth-crates-cloud-count');
+
+      const customCount = (availableCrates || []).filter(c => c.isCustom).length;
+      if (cloudCountEl) cloudCountEl.textContent = `${customCount} CRATE${customCount === 1 ? '' : 'S'}`;
+
+      if (currentAuthUser && getAuthToken()) {
+        const uName = (currentAuthUser.username || currentAuthUser.displayName || 'DJ').toUpperCase();
+        if (authBtnLabel) authBtnLabel.textContent = `[ 👤 ${uName} ]`;
+        if (authUserBadge) {
+          authUserBadge.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+        }
+        if (loggedOutView) loggedOutView.classList.add('hidden');
+        if (loggedInView) loggedInView.classList.remove('hidden');
+        if (profileUsername) profileUsername.textContent = uName;
+        if (profileInitial) profileInitial.textContent = uName.slice(0, 2);
+        if (profileDetails) profileDetails.textContent = currentAuthUser.email || 'MONGODB ATLAS CLOUD ACTIVE';
+      } else {
+        if (authBtnLabel) authBtnLabel.textContent = '[ 👤 LOG IN / SIGN UP ]';
+        if (authUserBadge) {
+          authUserBadge.className = 'w-2 h-2 rounded-full bg-black/30';
+        }
+        if (loggedOutView) loggedOutView.classList.remove('hidden');
+        if (loggedInView) loggedInView.classList.add('hidden');
+      }
+    }
+
+    const authModalBackdrop = document.getElementById('auth-modal-backdrop');
+    const authModal = document.getElementById('auth-modal');
+
+    window.openAuthModal = function() {
+      if (!authModalBackdrop) return;
+      updateAuthUI();
+      authModalBackdrop.style.setProperty('display', 'flex', 'important');
+      authModalBackdrop.style.setProperty('z-index', '99999', 'important');
+      authModalBackdrop.style.setProperty('pointer-events', 'auto', 'important');
+      authModalBackdrop.classList.remove('hidden');
+      authModalBackdrop.classList.add('flex');
+
+      requestAnimationFrame(() => {
+        authModalBackdrop.classList.remove('opacity-0');
+        authModalBackdrop.style.opacity = '1';
+        if (authModal) {
+          authModal.classList.remove('scale-95');
+          authModal.style.transform = 'scale(1)';
+        }
+      });
+    };
+
+    window.closeAuthModal = function() {
+      if (!authModalBackdrop) return;
+      authModalBackdrop.style.pointerEvents = 'none';
+      authModalBackdrop.classList.add('opacity-0');
+      authModalBackdrop.style.opacity = '0';
+      if (authModal) {
+        authModal.classList.add('scale-95');
+        authModal.style.transform = 'scale(0.95)';
+      }
+      setTimeout(() => {
+        authModalBackdrop.classList.remove('flex');
+        authModalBackdrop.classList.add('hidden');
+        authModalBackdrop.style.display = 'none';
+      }, 150);
+    };
+
+    window.switchAuthTab = function(mode) {
+      authCurrentTab = mode;
+      const tabLogin = document.getElementById('auth-tab-login');
+      const tabRegister = document.getElementById('auth-tab-register');
+      const emailField = document.getElementById('auth-email-field');
+      const submitBtn = document.getElementById('auth-submit-btn');
+      const statusMsg = document.getElementById('auth-status-msg');
+      if (statusMsg) statusMsg.classList.add('hidden');
+
+      if (mode === 'register') {
+        if (tabRegister) {
+          tabRegister.className = 'py-1.5 px-3 bg-black text-amber-300 font-headline-sm text-xs font-black uppercase text-center transition-all cursor-pointer';
+        }
+        if (tabLogin) {
+          tabLogin.className = 'py-1.5 px-3 bg-transparent text-black hover:bg-black/10 font-headline-sm text-xs font-black uppercase text-center transition-all cursor-pointer';
+        }
+        if (emailField) emailField.classList.remove('hidden');
+        if (submitBtn) submitBtn.textContent = 'CREATE ACCOUNT & CONNECT CLOUD ✦';
+      } else {
+        if (tabLogin) {
+          tabLogin.className = 'py-1.5 px-3 bg-black text-white font-headline-sm text-xs font-black uppercase text-center transition-all cursor-pointer';
+        }
+        if (tabRegister) {
+          tabRegister.className = 'py-1.5 px-3 bg-transparent text-black hover:bg-black/10 font-headline-sm text-xs font-black uppercase text-center transition-all cursor-pointer';
+        }
+        if (emailField) emailField.classList.add('hidden');
+        if (submitBtn) submitBtn.textContent = 'LOG IN TO CLOUD CRATES ⚡';
+      }
+    };
+
+    function showAuthStatus(msg, isSuccess = false) {
+      const el = document.getElementById('auth-status-msg');
+      if (!el) return;
+      el.textContent = msg;
+      el.className = `mb-3 p-2 font-data-mono text-[11px] font-bold border-[2px] border-black ${
+        isSuccess ? 'bg-emerald-300 text-black' : 'bg-red-400 text-black'
+      }`;
+      el.classList.remove('hidden');
+    }
+
+    window.handleAuthSubmit = async function(e) {
+      e.preventDefault();
+      const usernameInput = document.getElementById('auth-username');
+      const passwordInput = document.getElementById('auth-password');
+      const emailInput = document.getElementById('auth-email');
+      const submitBtn = document.getElementById('auth-submit-btn');
+
+      const username = usernameInput ? usernameInput.value.trim() : '';
+      const password = passwordInput ? passwordInput.value : '';
+      const email = emailInput ? emailInput.value.trim() : '';
+
+      if (!username || !password) {
+        showAuthStatus('Please enter username and password');
+        return;
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'CONNECTING TO MONGODB... ⏳';
+      }
+
+      const endpoint = (authCurrentTab === 'register') ? '/api/auth/register' : '/api/auth/login';
+      const payload = { username, password };
+      if (authCurrentTab === 'register' && email) payload.email = email;
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+          showAuthStatus(data.error || 'Authentication failed. Please verify credentials.');
+          return;
+        }
+
+        // Set session
+        setAuthSession(data.token, data.user);
+        showAuthStatus(`WELCOME, ${data.user.username.toUpperCase()}! SYNCING CRATES...`, true);
+        showToast(`LOGGED IN AS ${data.user.username.toUpperCase()}! ⚡`, true);
+
+        // Upload any existing local crates to MongoDB Atlas
+        await syncAllCratesToCloud(false);
+        // Refresh crates list
+        await fetchAndRenderCrates();
+
+        setTimeout(() => {
+          closeAuthModal();
+        }, 900);
+      } catch (err) {
+        console.error('[MongoDB Auth] Request error:', err);
+        showAuthStatus('Network error connecting to MongoDB backend');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = (authCurrentTab === 'register') ? 'CREATE ACCOUNT & CONNECT CLOUD ✦' : 'LOG IN TO CLOUD CRATES ⚡';
+        }
+      }
+    };
+
+    window.handleLogout = function() {
+      if (!confirm('Log out from your MongoDB Atlas cloud account?')) return;
+      setAuthSession(null, null);
+      showToast('LOGGED OUT. LOCAL ARCHIVES RETAINED.', false);
+      closeAuthModal();
+      fetchAndRenderCrates();
+    };
+
+    // Sync all custom crates and their tracks to MongoDB Atlas
+    window.syncAllCratesToCloud = async function(interactive = false) {
+      const token = getAuthToken();
+      if (!token) {
+        if (interactive) {
+          openAuthModal();
+          showAuthStatus('Please log in or create an account to save playlists to MongoDB Atlas');
+        }
+        return false;
+      }
+
+      const customCrates = (availableCrates || []).filter(c => c.isCustom);
+      try {
+        const res = await fetch('/api/user/sync-crates', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ crates: customCrates })
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (interactive) {
+            showToast(`SAVED ${customCrates.length} CRATES TO MONGODB ATLAS! ☁️`, true);
+          }
+          console.log(`[MongoDB] Successfully synced ${customCrates.length} crates to MongoDB Atlas`);
+          return true;
+        } else {
+          console.warn('[MongoDB] Sync failed:', data.error);
+          if (interactive) showToast(data.error || 'SYNC FAILED', false);
+          return false;
+        }
+      } catch (err) {
+        console.warn('[MongoDB] Sync network error:', err);
+        if (interactive) showToast('NETWORK ERROR SYNCING TO CLOUD', false);
+        return false;
+      }
+    };
+
+    // Auto-initialize MongoDB session on page load
+    initAuthSession();
 
   </script>
 </body>
