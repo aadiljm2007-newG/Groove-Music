@@ -98,6 +98,28 @@ const playlistSchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 const Playlist = mongoose.model('Playlist', playlistSchema);
 
+// Groove Together Room Schema (Persisted across serverless invocations and instances)
+const roomSchema = new mongoose.Schema({
+  code: { type: String, required: true, unique: true, uppercase: true, trim: true },
+  name: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+  currentTrackIndex: { type: Number, default: 0 },
+  isPlaying: { type: Boolean, default: false },
+  playbackSeconds: { type: Number, default: 0 },
+  lastStateUpdate: { type: Number, default: Date.now },
+  tracks: [{
+    id: { type: String, required: true },
+    cut: { type: String, default: '01' },
+    title: { type: String, required: true },
+    artist: { type: String, default: 'UNKNOWN ARTIST' },
+    duration: { type: String, default: '03:45' },
+    thumbnail: { type: String, default: '' }
+  }]
+});
+
+const Room = mongoose.model('Room', roomSchema);
+
 // Optional JWT Auth Middleware
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -665,15 +687,15 @@ app.delete('/api/user/playlist/:id', authenticateToken, async (req, res) => {
 
 // ================= GROOVE TOGETHER (ROOMS & SYNC) API =================
 
-// Create a new Groove Together room (with a random 4-character code)
-app.post('/api/room/create', (req, res) => {
+// Create a new Groove Together room (persisted to MongoDB Atlas)
+app.post('/api/room/create', async (req, res) => {
   const code = generateRoomCode();
   const roomName = (req.body.name || `GROOVE JAM // ${code}`).toUpperCase().trim();
   const initialTracks = Array.isArray(req.body.tracks) ? req.body.tracks : [];
   const initialIndex = typeof req.body.currentTrackIndex === 'number' ? req.body.currentTrackIndex : 0;
   const initialPlaying = Boolean(req.body.isPlaying);
 
-  const room = {
+  const roomData = {
     code,
     name: roomName,
     createdAt: Date.now(),
@@ -681,33 +703,77 @@ app.post('/api/room/create', (req, res) => {
     currentTrackIndex: initialIndex,
     isPlaying: initialPlaying,
     playbackSeconds: 0,
-    lastStateUpdate: Date.now(),
-    clients: new Set()
+    lastStateUpdate: Date.now()
   };
 
-  grooveRooms.set(code, room);
+  // In-memory cache for local / WS
+  grooveRooms.set(code, {
+    ...roomData,
+    clients: new Set()
+  });
 
-  console.log(`[Groove Together] Room created: ${code} ("${roomName}") with ${room.tracks.length} tracks.`);
+  // Persist to MongoDB Atlas for cloud / Vercel cross-instance sync
+  try {
+    const connected = await connectToDatabase();
+    if (connected) {
+      await Room.findOneAndUpdate(
+        { code },
+        roomData,
+        { upsert: true, new: true }
+      );
+      console.log(`[Groove Together] Room ${code} saved to MongoDB Atlas!`);
+    }
+  } catch (err) {
+    console.warn(`[Groove Together] MongoDB room save warning:`, err.message);
+  }
 
   res.json({
     success: true,
     code,
     room: {
-      code: room.code,
-      name: room.name,
-      tracks: room.tracks,
-      currentTrackIndex: room.currentTrackIndex,
-      isPlaying: room.isPlaying,
-      playbackSeconds: room.playbackSeconds,
-      listenersCount: room.clients.size
+      code,
+      name: roomName,
+      tracks: initialTracks,
+      currentTrackIndex: initialIndex,
+      isPlaying: initialPlaying,
+      playbackSeconds: 0,
+      listenersCount: 1,
+      lastStateUpdate: Date.now()
     }
   });
 });
 
-// Get room details by code
-app.get('/api/room/:code', (req, res) => {
+// Get room details by code (from MongoDB Atlas or cache)
+app.get('/api/room/:code', async (req, res) => {
   const code = (req.params.code || '').toUpperCase().trim();
-  const room = grooveRooms.get(code);
+
+  // Try in-memory first
+  let room = grooveRooms.get(code);
+
+  // If not found in memory (e.g. separate Vercel worker), fetch from MongoDB
+  if (!room) {
+    try {
+      const connected = await connectToDatabase();
+      if (connected) {
+        const dbRoom = await Room.findOne({ code });
+        if (dbRoom) {
+          room = {
+            code: dbRoom.code,
+            name: dbRoom.name,
+            tracks: dbRoom.tracks || [],
+            currentTrackIndex: dbRoom.currentTrackIndex || 0,
+            isPlaying: dbRoom.isPlaying || false,
+            playbackSeconds: dbRoom.playbackSeconds || 0,
+            lastStateUpdate: dbRoom.lastStateUpdate || Date.now(),
+            clients: new Set()
+          };
+          grooveRooms.set(code, room);
+        }
+      }
+    } catch (err) {
+      console.warn(`[Groove Together] MongoDB room find error:`, err.message);
+    }
+  }
 
   if (!room) {
     return res.status(404).json({ success: false, error: 'ROOM NOT FOUND. CHECK YOUR 4-DIGIT CODE.' });
@@ -722,24 +788,189 @@ app.get('/api/room/:code', (req, res) => {
       currentTrackIndex: room.currentTrackIndex,
       isPlaying: room.isPlaying,
       playbackSeconds: room.playbackSeconds,
-      listenersCount: room.clients.size
+      listenersCount: Math.max(1, room.clients?.size || 1),
+      lastStateUpdate: room.lastStateUpdate || Date.now()
     }
   });
 });
 
-// All active rooms (for discovery / listing)
-app.get('/api/rooms', (req, res) => {
-  const list = [];
-  for (const [code, r] of grooveRooms.entries()) {
-    list.push({
+// HTTP Action Endpoint (for Vercel & serverless environments without persistent WebSockets)
+app.post('/api/room/:code/action', async (req, res) => {
+  const code = (req.params.code || '').toUpperCase().trim();
+  const { type, payload, userName } = req.body || {};
+  const clientUser = (userName || 'ANONYMOUS').toUpperCase().trim();
+
+  await connectToDatabase();
+
+  let room = grooveRooms.get(code);
+  let dbRoom = null;
+
+  try {
+    dbRoom = await Room.findOne({ code });
+  } catch (e) {
+    console.warn('DB fetch error for room action:', e.message);
+  }
+
+  if (!room && !dbRoom) {
+    return res.status(404).json({ success: false, error: 'ROOM_NOT_FOUND' });
+  }
+
+  const tracks = (room ? room.tracks : dbRoom.tracks) || [];
+  let currentTrackIndex = typeof (room ? room.currentTrackIndex : dbRoom?.currentTrackIndex) === 'number'
+    ? (room ? room.currentTrackIndex : dbRoom.currentTrackIndex) : 0;
+  let isPlaying = Boolean(room ? room.isPlaying : dbRoom?.isPlaying);
+  let playbackSeconds = Number(room ? room.playbackSeconds : (dbRoom?.playbackSeconds || 0));
+  let eventNotice = '';
+
+  if (type === 'ADD_TRACK' && payload?.track) {
+    tracks.push(payload.track);
+    if (tracks.length === 1) {
+      currentTrackIndex = 0;
+      isPlaying = true;
+    }
+    eventNotice = `${clientUser} added "${payload.track.title}" to the queue.`;
+  } else if (type === 'REMOVE_TRACK') {
+    const idx = payload?.index;
+    if (typeof idx === 'number' && idx >= 0 && idx < tracks.length) {
+      const removed = tracks.splice(idx, 1)[0];
+      if (currentTrackIndex >= tracks.length) {
+        currentTrackIndex = Math.max(0, tracks.length - 1);
+      }
+      eventNotice = `${clientUser} removed "${removed?.title || 'track'}" from queue.`;
+    }
+  } else if (type === 'REORDER_TRACKS') {
+    const { fromIndex, toIndex } = payload || {};
+    if (typeof fromIndex === 'number' && typeof toIndex === 'number' &&
+        fromIndex >= 0 && fromIndex < tracks.length &&
+        toIndex >= 0 && toIndex < tracks.length) {
+      const temp = tracks[fromIndex];
+      tracks[fromIndex] = tracks[toIndex];
+      tracks[toIndex] = temp;
+      if (currentTrackIndex === fromIndex) {
+        currentTrackIndex = toIndex;
+      } else if (currentTrackIndex === toIndex) {
+        currentTrackIndex = fromIndex;
+      }
+      eventNotice = `${clientUser} moved track order.`;
+    }
+  } else if (type === 'SET_TRACK') {
+    const idx = payload?.index;
+    if (typeof idx === 'number' && idx >= 0 && idx < tracks.length) {
+      currentTrackIndex = idx;
+      isPlaying = true;
+      playbackSeconds = 0;
+      eventNotice = `${clientUser} started playing track #${idx + 1}`;
+    }
+  } else if (type === 'PLAY_PAUSE') {
+    isPlaying = Boolean(payload?.isPlaying);
+    if (typeof payload?.playbackSeconds === 'number') {
+      playbackSeconds = payload.playbackSeconds;
+    }
+    eventNotice = `${clientUser} ${isPlaying ? 'resumed' : 'paused'} playback.`;
+  } else if (type === 'SEEK') {
+    playbackSeconds = payload?.seconds || 0;
+    eventNotice = `${clientUser} scrubbed to ${formatTime(playbackSeconds)}`;
+  } else if (type === 'SKIP') {
+    const dir = payload?.direction || 1;
+    if (tracks.length > 0) {
+      currentTrackIndex = (currentTrackIndex + dir + tracks.length) % tracks.length;
+      isPlaying = true;
+      playbackSeconds = 0;
+      eventNotice = `${clientUser} skipped track.`;
+    }
+  }
+
+  const now = Date.now();
+
+  // Update in-memory if available
+  if (room) {
+    room.tracks = tracks;
+    room.currentTrackIndex = currentTrackIndex;
+    room.isPlaying = isPlaying;
+    room.playbackSeconds = playbackSeconds;
+    room.lastStateUpdate = now;
+  }
+
+  // Update MongoDB Atlas
+  try {
+    if (dbRoom) {
+      dbRoom.tracks = tracks;
+      dbRoom.currentTrackIndex = currentTrackIndex;
+      dbRoom.isPlaying = isPlaying;
+      dbRoom.playbackSeconds = playbackSeconds;
+      dbRoom.lastStateUpdate = now;
+      dbRoom.updatedAt = new Date();
+      await dbRoom.save();
+    } else {
+      await Room.findOneAndUpdate(
+        { code },
+        { tracks, currentTrackIndex, isPlaying, playbackSeconds, lastStateUpdate: now, updatedAt: new Date() },
+        { upsert: true }
+      );
+    }
+  } catch (err) {
+    console.warn('Error updating room in MongoDB:', err.message);
+  }
+
+  // Broadcast to any local WS clients as well
+  broadcastToRoom(code, {
+    type: 'ROOM_UPDATE',
+    room: {
       code,
-      name: r.name,
-      trackCount: r.tracks.length,
-      currentTrack: r.tracks[r.currentTrackIndex] || null,
-      isPlaying: r.isPlaying,
-      listenersCount: r.clients.size,
-      createdAt: r.createdAt
-    });
+      name: room?.name || dbRoom?.name || `GROOVE JAM // ${code}`,
+      tracks,
+      currentTrackIndex,
+      isPlaying,
+      playbackSeconds,
+      listenersCount: Math.max(1, room?.clients?.size || 1)
+    },
+    eventNotice
+  });
+
+  res.json({
+    success: true,
+    room: {
+      code,
+      name: room?.name || dbRoom?.name || `GROOVE JAM // ${code}`,
+      tracks,
+      currentTrackIndex,
+      isPlaying,
+      playbackSeconds,
+      lastStateUpdate: now
+    },
+    eventNotice
+  });
+});
+
+// All active rooms (for discovery / listing)
+app.get('/api/rooms', async (req, res) => {
+  const list = [];
+  try {
+    await connectToDatabase();
+    const dbRooms = await Room.find({}).sort({ updatedAt: -1 }).limit(20);
+    for (const r of dbRooms) {
+      list.push({
+        code: r.code,
+        name: r.name,
+        trackCount: r.tracks?.length || 0,
+        currentTrack: r.tracks?.[r.currentTrackIndex] || null,
+        isPlaying: r.isPlaying,
+        listenersCount: 1,
+        createdAt: r.createdAt
+      });
+    }
+  } catch (e) {
+    for (const [code, r] of grooveRooms.entries()) {
+      list.push({
+        code,
+        name: r.name,
+        trackCount: r.tracks.length,
+        currentTrack: r.tracks[r.currentTrackIndex] || null,
+        isPlaying: r.isPlaying,
+        listenersCount: r.clients.size,
+        createdAt: r.createdAt
+      });
+    }
   }
   res.json({ count: list.length, rooms: list });
 });

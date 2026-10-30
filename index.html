@@ -4326,25 +4326,112 @@
       }
     }
 
+    let togetherPollInterval = null;
+
     function sendTogetherMessage(type, payload = {}) {
-      if (!togetherWs || togetherWs.readyState !== WebSocket.OPEN) {
-        ensureTogetherWebSocket(() => {
-          if (togetherWs && activeGrooveRoom) {
-            togetherWs.send(JSON.stringify({
-              type,
-              code: activeGrooveRoom.code,
-              payload
-            }));
-          }
-        });
-        return;
+      const code = activeGrooveRoom ? activeGrooveRoom.code : null;
+
+      // 1. Try sending over WebSocket if available
+      if (togetherWs && togetherWs.readyState === WebSocket.OPEN) {
+        togetherWs.send(JSON.stringify({
+          type,
+          code,
+          payload
+        }));
       }
 
-      togetherWs.send(JSON.stringify({
-        type,
-        code: activeGrooveRoom ? activeGrooveRoom.code : null,
-        payload
-      }));
+      // 2. Always persist HTTP Action to /api/room/:code/action for serverless / Vercel instances
+      if (code && type !== 'JOIN_ROOM' && type !== 'LEAVE_ROOM') {
+        fetch(`/api/room/${code}/action`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type,
+            payload,
+            userName: getTogetherUsername()
+          })
+        }).then(res => res.json()).then(data => {
+          if (data && data.success && data.room) {
+            applyRoomState(data.room, false);
+          }
+        }).catch(err => {
+          console.warn('[Groove Together] HTTP Action fallback error:', err);
+        });
+      }
+    }
+
+    function applyRoomState(room, notifyEvents = true) {
+      if (!room) return;
+      activeGrooveRoom = {
+        ...activeGrooveRoom,
+        ...room
+      };
+
+      // Check if tracks or index or playing changed
+      const tracksChanged = JSON.stringify(jamRoomTracks.map(t => t.id)) !== JSON.stringify((room.tracks || []).map(t => t.id));
+      const newIndex = typeof room.currentTrackIndex === 'number' ? room.currentTrackIndex : 0;
+      const indexChanged = jamCurrentTrackIndex !== newIndex;
+      const playStateChanged = isPlaying !== Boolean(room.isPlaying);
+
+      jamRoomTracks = [...(room.tracks || [])];
+      jamCurrentTrackIndex = newIndex;
+
+      updateTogetherModalUI();
+
+      if (currentRackView === 'jam') {
+        renderJamTracklist();
+        updateCrateTitleDisplay();
+      }
+
+      if (jamRoomTracks.length > 0) {
+        const targetTrack = jamRoomTracks[jamCurrentTrackIndex];
+        const currentTrack = currentTrackIndex >= 0 && tracks[currentTrackIndex];
+        const isDifferentTrack = !currentTrack || currentTrack.id !== targetTrack?.id;
+
+        if (isDifferentTrack || tracksChanged || indexChanged) {
+          isRemoteSyncUpdate = true;
+          selectJamTrack(jamCurrentTrackIndex, room.isPlaying);
+          setTimeout(() => { isRemoteSyncUpdate = false; }, 300);
+        } else if (playStateChanged) {
+          isRemoteSyncUpdate = true;
+          if (room.isPlaying) {
+            if (ytPlayer && ytPlayer.playVideo) ytPlayer.playVideo();
+            setPlayState(true);
+          } else {
+            if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+            setPlayState(false);
+          }
+          setTimeout(() => { isRemoteSyncUpdate = false; }, 300);
+        }
+      } else {
+        resetPlayerToEmpty();
+      }
+    }
+
+    function startTogetherPolling(code) {
+      stopTogetherPolling();
+      togetherPollInterval = setInterval(async () => {
+        if (!activeGrooveRoom || !activeGrooveRoom.code) {
+          stopTogetherPolling();
+          return;
+        }
+        try {
+          const res = await fetch(`/api/room/${activeGrooveRoom.code}`);
+          const data = await res.json();
+          if (data && data.success && data.room) {
+            applyRoomState(data.room, false);
+          }
+        } catch (e) {
+          // Silent network poll retry
+        }
+      }, 2000);
+    }
+
+    function stopTogetherPolling() {
+      if (togetherPollInterval) {
+        clearInterval(togetherPollInterval);
+        togetherPollInterval = null;
+      }
     }
 
     // Incoming WebSocket message handler
@@ -4362,25 +4449,7 @@
 
         if (type === 'ROOM_JOINED' || type === 'ROOM_UPDATE') {
           if (room) {
-            activeGrooveRoom = room;
-
-            // Populate Jam Room's isolated queue
-            isRemoteSyncUpdate = true;
-            jamRoomTracks = [...(room.tracks || [])];
-            jamCurrentTrackIndex = typeof room.currentTrackIndex === 'number' ? room.currentTrackIndex : 0;
-            
-            updateTogetherModalUI();
-            renderJamTracklist();
-
-            // Set current track if pointer moved or first joined
-            if (jamRoomTracks.length > 0) {
-              const targetIdx = Math.min(jamCurrentTrackIndex, jamRoomTracks.length - 1);
-              selectJamTrack(targetIdx, room.isPlaying);
-            } else {
-              resetPlayerToEmpty();
-            }
-
-            setTimeout(() => { isRemoteSyncUpdate = false; }, 200);
+            applyRoomState(room, true);
           }
         }
         else if (type === 'PLAY_TRACK') {
@@ -4409,9 +4478,7 @@
           }
         }
         else if (type === 'ROOM_LEFT') {
-          activeGrooveRoom = null;
-          updateTogetherModalUI();
-          showToast('LEFT JAM ROOM');
+          leaveGrooveRoom();
         }
         else if (type === 'ERROR') {
           showToast(msg.message || 'GROOVE ROOM ERROR', false);
@@ -4449,6 +4516,20 @@
         jamCurrentTrackIndex = data.room.currentTrackIndex || 0;
 
         showToast(`ROOM ${data.code} CREATED!`, true);
+        startTogetherPolling(data.code);
+
+        // Switch tracklist to Jam Room view automatically so user immediately sees jam tracks
+        currentRackView = 'jam';
+        const jamTabBtn = document.getElementById('jam-rack-tab-btn');
+        const crateTabBtn = document.getElementById('crate-rack-tab-btn');
+        if (jamTabBtn && crateTabBtn) {
+          jamTabBtn.classList.remove('bg-gray-200', 'text-gray-500');
+          jamTabBtn.classList.add('bg-brand-lime', 'text-black');
+          crateTabBtn.classList.remove('bg-brand-lime', 'text-black');
+          crateTabBtn.classList.add('bg-gray-200', 'text-gray-500');
+        }
+
+        applyRoomState(data.room, false);
 
         // Connect WebSocket and officially join the created room
         ensureTogetherWebSocket(() => {
@@ -4495,6 +4576,20 @@
         jamCurrentTrackIndex = data.room.currentTrackIndex || 0;
 
         showToast(`JOINED ROOM: ${cleanCode}!`, true);
+        startTogetherPolling(cleanCode);
+
+        // Switch rack view to Jam Queue so new listener immediately sees the room's live queue!
+        currentRackView = 'jam';
+        const jamTabBtn = document.getElementById('jam-rack-tab-btn');
+        const crateTabBtn = document.getElementById('crate-rack-tab-btn');
+        if (jamTabBtn && crateTabBtn) {
+          jamTabBtn.classList.remove('bg-gray-200', 'text-gray-500');
+          jamTabBtn.classList.add('bg-brand-lime', 'text-black');
+          crateTabBtn.classList.remove('bg-brand-lime', 'text-black');
+          crateTabBtn.classList.add('bg-gray-200', 'text-gray-500');
+        }
+
+        applyRoomState(data.room, false);
 
         ensureTogetherWebSocket(() => {
           sendTogetherMessage('JOIN_ROOM', {
@@ -4511,6 +4606,7 @@
 
     // 3. Leave Room
     window.leaveGrooveRoom = function() {
+      stopTogetherPolling();
       if (activeGrooveRoom) {
         sendTogetherMessage('LEAVE_ROOM');
         activeGrooveRoom = null;
@@ -4518,6 +4614,15 @@
         updateTogetherModalUI();
         showToast('DISCONNECTED FROM ROOM');
         // Restore personal local crate playback and UI
+        currentRackView = 'crate';
+        const jamTabBtn = document.getElementById('jam-rack-tab-btn');
+        const crateTabBtn = document.getElementById('crate-rack-tab-btn');
+        if (jamTabBtn && crateTabBtn) {
+          crateTabBtn.classList.remove('bg-gray-200', 'text-gray-500');
+          crateTabBtn.classList.add('bg-brand-lime', 'text-black');
+          jamTabBtn.classList.remove('bg-brand-lime', 'text-black');
+          jamTabBtn.classList.add('bg-gray-200', 'text-gray-500');
+        }
         renderTracklist();
         updateCrateTitleDisplay();
         if (tracks.length > 0) {
