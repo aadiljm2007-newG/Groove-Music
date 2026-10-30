@@ -980,6 +980,11 @@ function formatTime(secs) {
 // Serve frontend static files
 app.use(express.static(__dirname));
 
+// Dedicated Login Page Route
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
