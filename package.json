@@ -1,0 +1,17 @@
+{
+  "name": "groove-raw-player",
+  "version": "1.0.0",
+  "description": "Neo-brutalist vinyl record player streaming with YouTube and AI search",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "ws": "^8.22.0"
+  }
+}
