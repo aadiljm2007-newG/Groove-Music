@@ -3953,6 +3953,7 @@
     let isRemoteSyncUpdate = false; // Flag to prevent infinite broadcast echo loops
     let jamRoomTracks = []; // Independent live queue for the shared jam session
     let jamCurrentTrackIndex = 0; // Active track pointer in Jam room
+    let currentPlayingJamTrackId = null; // Currently loaded YouTube ID in Jam Room
     let currentRackView = 'crate'; // 'crate' or 'jam'
 
     const togetherBackdrop = document.getElementById('together-modal-backdrop');
@@ -4223,6 +4224,7 @@
       if (mpArtCenter && track.thumbnail) mpArtCenter.src = track.thumbnail;
 
       renderJamTracklist();
+      currentPlayingJamTrackId = track.id;
 
       // Play through YouTube
       if (ytPlayer && ytPlayer.loadVideoById) {
@@ -4385,10 +4387,9 @@
 
       if (jamRoomTracks.length > 0) {
         const targetTrack = jamRoomTracks[jamCurrentTrackIndex];
-        const currentTrack = currentTrackIndex >= 0 && tracks[currentTrackIndex];
-        const isDifferentTrack = !currentTrack || currentTrack.id !== targetTrack?.id;
+        const isDifferentTrack = !currentPlayingJamTrackId || currentPlayingJamTrackId !== targetTrack?.id;
 
-        if (isDifferentTrack || tracksChanged || indexChanged) {
+        if (isDifferentTrack || indexChanged || tracksChanged) {
           isRemoteSyncUpdate = true;
           selectJamTrack(jamCurrentTrackIndex, room.isPlaying);
           setTimeout(() => { isRemoteSyncUpdate = false; }, 300);
@@ -4404,6 +4405,7 @@
           setTimeout(() => { isRemoteSyncUpdate = false; }, 300);
         }
       } else {
+        currentPlayingJamTrackId = null;
         resetPlayerToEmpty();
       }
     }
@@ -4420,11 +4422,21 @@
           const data = await res.json();
           if (data && data.success && data.room) {
             applyRoomState(data.room, false);
+
+            // Time drift compensation: if remote has a playback timestamp, keep listeners aligned
+            if (ytPlayer && ytPlayer.getCurrentTime && typeof data.room.playbackSeconds === 'number' && data.room.isPlaying) {
+              const localTime = ytPlayer.getCurrentTime() || 0;
+              const remoteTime = data.room.playbackSeconds;
+              // If local is drifting by more than 3 seconds from the host/room, nudge it
+              if (Math.abs(localTime - remoteTime) > 3.5) {
+                ytPlayer.seekTo(remoteTime, true);
+              }
+            }
           }
         } catch (e) {
           // Silent network poll retry
         }
-      }, 2000);
+      }, 1200);
     }
 
     function stopTogetherPolling() {
