@@ -804,59 +804,67 @@
         <section class="lg:col-span-7 flex flex-col border-b-[4px] lg:border-b-0 lg:border-r-[4px] border-black relative overflow-hidden">
           
           <!-- TOP HEADER BAR (DIRECTLY ABOVE THE RECORD PLAYER) -->
-          <div class="border-b-[4px] border-black bg-surface p-3 md:px-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="border-b-[4px] border-black bg-surface p-2.5 sm:p-3 md:px-4 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-2.5">
             
-            <!-- FAR LEFT: AI Search Input (Triggers Popout on Click) -->
-            <div id="search-form" onclick="openSearchDrawer(event)" role="button" tabindex="0" class="w-full sm:w-auto flex-1 max-w-xs md:max-w-sm flex items-center bg-surface-container-lowest border-[2px] border-black shadow-[2px_2px_0px_#000000] px-2.5 py-1.5 gap-1.5 cursor-pointer hover:bg-primary-container transition-colors">
-              <span class="material-symbols-outlined text-on-surface text-[16px]">search</span>
-              <input id="search-input" onclick="openSearchDrawer(event)" class="w-full bg-transparent font-data-mono text-[11px] text-on-surface placeholder:text-on-surface-variant outline-none cursor-pointer" placeholder="SEARCH SONG OR MOOD (PRESS ENTER)..." type="text" readonly/>
-            </div>
-
-            <!-- RIGHT GROUP: Brand Logo & Mode Selector Controls -->
-            <div class="flex items-center gap-3 sm:gap-4 flex-shrink-0 w-full sm:w-auto justify-between sm:justify-end">
+            <!-- LEFT GROUP: AI Search Input + Brand Logo -->
+            <div class="flex items-center gap-2.5 flex-1 min-w-0">
               <!-- Brand Logo -->
               <div class="flex items-center gap-2 flex-shrink-0">
-                <div class="w-8 h-8 bg-inverse-surface border-[2px] border-black flex items-center justify-center shadow-[2px_2px_0px_#000000]">
-                  <span class="material-symbols-outlined text-primary-container text-[20px]">album</span>
+                <div class="w-7 h-7 sm:w-8 sm:h-8 bg-inverse-surface border-[2px] border-black flex items-center justify-center shadow-[2px_2px_0px_#000000]">
+                  <span class="material-symbols-outlined text-primary-container text-[18px] sm:text-[20px]">album</span>
                 </div>
-                <span class="font-headline-sm text-base uppercase tracking-tight font-black text-on-surface">GROOVE.RAW</span>
-                <span class="px-1.5 py-0.5 bg-primary-container text-on-surface border-[2px] border-black font-label-sm text-[9px] font-bold uppercase shadow-[2px_2px_0px_#000000] hidden md:inline-block">[ VINYL_OS v2.6 ]</span>
+                <span class="font-headline-sm text-sm sm:text-base uppercase tracking-tight font-black text-on-surface whitespace-nowrap">GROOVE.RAW</span>
+                <span class="px-1.5 py-0.5 bg-primary-container text-on-surface border-[2px] border-black font-label-sm text-[8px] sm:text-[9px] font-bold uppercase shadow-[2px_2px_0px_#000000] hidden 2xl:inline-block">[ VINYL_OS v2.6 ]</span>
               </div>
 
-              <!-- Mode Selector Controls -->
-              <div class="flex items-center gap-2 flex-shrink-0">
-                <button id="mode-vinyl-btn" class="relative px-3.5 py-1.5 bg-primary-container text-on-surface border-[2px] border-black font-headline-sm text-xs uppercase tracking-tight shadow-[2px_2px_0px_#111111] hover:translate-x-0.5 hover:translate-y-0.5 transition-all" type="button">
-                  <span class="flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-tertiary border border-black animate-pulse"></span>
-                    [ ⏺ VINYL MODE ]
-                  </span>
-                  <span class="absolute -top-2.5 -right-1.5 px-1 bg-secondary-fixed text-black border-[1.5px] border-black font-label-sm text-[8px] font-bold rotate-6">
-                    PRIMARY
-                  </span>
-                </button>
-                <button id="mode-miniplayer-btn" class="px-3.5 py-1.5 bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-[2px] border-black font-headline-sm text-xs uppercase tracking-tight shadow-[2px_2px_0px_#111111] hover:bg-surface-container-low hover:translate-x-0.5 hover:translate-y-0.5 transition-all" type="button" title="Open floating always-on-top miniplayer">
-                  <span class="flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[15px]">picture_in_picture_alt</span>
-                    [ 🪟 MINIPLAYER MODE ]
-                  </span>
-                </button>
-                <button id="groove-together-btn" onclick="openTogetherModal()" class="relative px-3.5 py-1.5 bg-secondary-container text-black border-[2px] border-black font-headline-sm text-xs uppercase font-black tracking-tight shadow-[2px_2px_0px_#111111] hover:bg-secondary-fixed hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer" type="button" title="Groove Together: Shared Jam Room">
-                  <span class="flex items-center gap-1.5">
-                    <span id="together-live-dot" class="w-2 h-2 rounded-full bg-black/40"></span>
-                    <span class="material-symbols-outlined text-[16px]">groups</span>
-                    <span id="together-btn-text">[ 🤝 GROOVE TOGETHER ]</span>
-                  </span>
-                </button>
-                <button id="auth-account-btn" onclick="openAuthModal()" class="px-3.5 py-1.5 bg-tertiary-container text-black border-[2px] border-black font-headline-sm text-xs uppercase font-black tracking-tight shadow-[2px_2px_0px_#111111] hover:bg-amber-300 hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer" type="button" title="MongoDB Account & Cloud Playlists">
-                  <span class="flex items-center gap-1.5">
-                    <span id="auth-user-badge" class="w-2 h-2 rounded-full bg-black/30"></span>
-                    <span class="material-symbols-outlined text-[16px]">account_circle</span>
-                    <span id="auth-btn-label">[ 👤 LOG IN / SIGN UP ]</span>
-                  </span>
-                </button>
+              <!-- AI Search Input (Triggers Popout on Click) -->
+              <div id="search-form" onclick="openSearchDrawer(event)" role="button" tabindex="0" class="flex-1 max-w-xs md:max-w-sm flex items-center bg-surface-container-lowest border-[2px] border-black shadow-[2px_2px_0px_#000000] px-2 sm:px-2.5 py-1 sm:py-1.5 gap-1.5 cursor-pointer hover:bg-primary-container transition-colors min-w-[140px]">
+                <span class="material-symbols-outlined text-on-surface text-[15px] sm:text-[16px] flex-shrink-0">search</span>
+                <input id="search-input" onclick="openSearchDrawer(event)" class="w-full bg-transparent font-data-mono text-[10px] sm:text-[11px] text-on-surface placeholder:text-on-surface-variant outline-none cursor-pointer truncate" placeholder="SEARCH SONG OR MOOD..." type="text" readonly/>
               </div>
             </div>
 
+            <!-- RIGHT GROUP: Mode Selector & Feature Controls -->
+            <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap justify-start xl:justify-end flex-shrink-0">
+              
+              <!-- 1. Vinyl Mode (Active indicator) -->
+              <button id="mode-vinyl-btn" class="relative px-2.5 sm:px-3 py-1 sm:py-1.5 bg-primary-container text-on-surface border-[2px] border-black font-headline-sm text-[11px] sm:text-xs uppercase tracking-tight shadow-[2px_2px_0px_#111111] hover:translate-x-0.5 hover:translate-y-0.5 transition-all whitespace-nowrap" type="button">
+                <span class="flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-tertiary border border-black animate-pulse flex-shrink-0"></span>
+                  <span>[ ⏺ VINYL ]</span>
+                </span>
+                <span class="absolute -top-2.5 -right-1 px-1 bg-secondary-fixed text-black border-[1.5px] border-black font-label-sm text-[7px] sm:text-[8px] font-bold rotate-6 hidden sm:inline-block">
+                  PRIMARY
+                </span>
+              </button>
+
+              <!-- 2. Miniplayer Mode -->
+              <button id="mode-miniplayer-btn" class="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-[2px] border-black font-headline-sm text-[11px] sm:text-xs uppercase tracking-tight shadow-[2px_2px_0px_#111111] hover:bg-surface-container-low hover:translate-x-0.5 hover:translate-y-0.5 transition-all whitespace-nowrap" type="button" title="Open floating always-on-top miniplayer">
+                <span class="flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[15px] flex-shrink-0">picture_in_picture_alt</span>
+                  <span>[ 🪟 MINIPLAYER ]</span>
+                </span>
+              </button>
+
+              <!-- 3. Groove Together (Jam Room) -->
+              <button id="groove-together-btn" onclick="openTogetherModal()" class="relative px-2.5 sm:px-3 py-1 sm:py-1.5 bg-secondary-container text-black border-[2px] border-black font-headline-sm text-[11px] sm:text-xs uppercase font-black tracking-tight shadow-[2px_2px_0px_#111111] hover:bg-secondary-fixed hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer whitespace-nowrap" type="button" title="Groove Together: Shared Jam Room">
+                <span class="flex items-center gap-1">
+                  <span id="together-live-dot" class="w-2 h-2 rounded-full bg-black/40 flex-shrink-0"></span>
+                  <span class="material-symbols-outlined text-[15px] flex-shrink-0">groups</span>
+                  <span id="together-btn-text">[ 🤝 TOGETHER ]</span>
+                </span>
+              </button>
+
+              <!-- 4. MongoDB Account / Login -->
+              <button id="auth-account-btn" onclick="openAuthModal()" class="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-tertiary-container text-black border-[2px] border-black font-headline-sm text-[11px] sm:text-xs uppercase font-black tracking-tight shadow-[2px_2px_0px_#111111] hover:bg-amber-300 hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer whitespace-nowrap" type="button" title="MongoDB Account & Cloud Playlists">
+                <span class="flex items-center gap-1">
+                  <span id="auth-user-badge" class="w-2 h-2 rounded-full bg-black/30 flex-shrink-0"></span>
+                  <span class="material-symbols-outlined text-[15px] flex-shrink-0">account_circle</span>
+                  <span id="auth-btn-label">[ 👤 LOG IN ]</span>
+                </span>
+              </button>
+
+            </div>
           </div>
 
           <!-- Main Plinth Surface -->
@@ -4271,7 +4279,7 @@
           togetherLiveDot.className = 'w-2 h-2 rounded-full bg-black/40';
         }
         if (togetherBtnText) {
-          togetherBtnText.textContent = '[ 🤝 GROOVE TOGETHER ]';
+          togetherBtnText.textContent = '[ 🤝 TOGETHER ]';
         }
 
         // Hide Jam tabs & revert rack view to personal crate
@@ -4655,7 +4663,7 @@
         if (profileInitial) profileInitial.textContent = uName.slice(0, 2);
         if (profileDetails) profileDetails.textContent = currentAuthUser.email || 'MONGODB ATLAS CLOUD ACTIVE';
       } else {
-        if (authBtnLabel) authBtnLabel.textContent = '[ 👤 LOG IN / SIGN UP ]';
+        if (authBtnLabel) authBtnLabel.textContent = '[ 👤 LOG IN ]';
         if (authUserBadge) {
           authUserBadge.className = 'w-2 h-2 rounded-full bg-black/30';
         }
