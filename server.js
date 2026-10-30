@@ -24,18 +24,44 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // =================== MONGODB CONNECTION & SCHEMAS ===================
-let isMongoConnected = false;
-const MONGODB_URI = process.env.MONGODB_URI;
+let cachedDbConnection = null;
 
-if (MONGODB_URI) {
-  mongoose.connect(MONGODB_URI, {
-    serverSelectionTimeoutMS: 5000
-  }).then(() => {
-    isMongoConnected = true;
+async function connectToDatabase() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    console.warn('⚠️ [MongoDB] MONGODB_URI is not set in environment!');
+    return false;
+  }
+  if (mongoose.connection && mongoose.connection.readyState === 1) {
+    return true;
+  }
+  if (cachedDbConnection) {
+    try {
+      await cachedDbConnection;
+      return true;
+    } catch {
+      cachedDbConnection = null;
+    }
+  }
+
+  try {
+    cachedDbConnection = mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 8000,
+      bufferCommands: false
+    });
+    await cachedDbConnection;
     console.log('📦 [MongoDB Atlas] Connected successfully to Groove Music Database!');
-  }).catch(err => {
-    console.warn('⚠️ [MongoDB Atlas] Connection warning:', err.message);
-  });
+    return true;
+  } catch (err) {
+    cachedDbConnection = null;
+    console.warn('⚠️ [MongoDB Atlas] Connection failed:', err.message);
+    return false;
+  }
+}
+
+// Initial warm-up connection
+if (process.env.MONGODB_URI) {
+  connectToDatabase().catch(err => console.warn('DB Init error:', err.message));
 }
 
 // User Schema (Login info)
@@ -404,7 +430,8 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ success: false, error: 'PASSWORD_TOO_SHORT' });
     }
 
-    if (!isMongoConnected) {
+    const connected = await connectToDatabase();
+    if (!connected) {
       return res.status(503).json({ success: false, error: 'DATABASE_OFFLINE' });
     }
 
@@ -477,7 +504,8 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ success: false, error: 'USERNAME_AND_PASSWORD_REQUIRED' });
     }
 
-    if (!isMongoConnected) {
+    const connected = await connectToDatabase();
+    if (!connected) {
       return res.status(503).json({ success: false, error: 'DATABASE_OFFLINE' });
     }
 
@@ -529,7 +557,8 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 // Get all playlists & tracks for authenticated user
 app.get('/api/user/playlists', authenticateToken, async (req, res) => {
   try {
-    if (!isMongoConnected) {
+    const connected = await connectToDatabase();
+    if (!connected) {
       return res.status(503).json({ success: false, error: 'DATABASE_OFFLINE' });
     }
     const playlists = await Playlist.find({ userId: req.user.id }).sort({ updatedAt: -1 });
@@ -556,7 +585,8 @@ app.get('/api/user/playlists', authenticateToken, async (req, res) => {
 // Save or sync all playlists/crates for authenticated user
 app.post('/api/user/sync-crates', authenticateToken, async (req, res) => {
   try {
-    if (!isMongoConnected) {
+    const connected = await connectToDatabase();
+    if (!connected) {
       return res.status(503).json({ success: false, error: 'DATABASE_OFFLINE' });
     }
 
@@ -621,7 +651,8 @@ app.post('/api/user/sync-crates', authenticateToken, async (req, res) => {
 // Delete a user playlist from MongoDB
 app.delete('/api/user/playlist/:id', authenticateToken, async (req, res) => {
   try {
-    if (!isMongoConnected) {
+    const connected = await connectToDatabase();
+    if (!connected) {
       return res.status(503).json({ success: false, error: 'DATABASE_OFFLINE' });
     }
     const crateId = req.params.id;
