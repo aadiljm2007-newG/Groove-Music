@@ -800,7 +800,7 @@
     <div class="bg-surface-container-lowest border-[4px] border-black shadow-[8px_8px_0px_#111111] overflow-hidden">
       
       <!-- TOP MASTER HEADER BAR (SPANS FULL WIDTH OF CONSOLE) -->
-      <header class="border-b-[4px] border-black bg-surface-container-high p-3 md:px-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-sm">
+      <header class="border-b-[4px] border-black bg-white p-3 md:px-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-md relative z-20">
         
         <!-- LEFT: Brand Logo + AI Search Bar -->
         <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -814,7 +814,7 @@
           </div>
 
           <!-- Prominent AI Search Input (Triggers Popout on Click) -->
-          <div id="search-form" onclick="openSearchDrawer(event)" role="button" tabindex="0" class="flex-1 max-w-sm lg:max-w-md flex items-center bg-white border-[2px] border-black shadow-[3px_3px_0px_#000000] px-3 py-1.5 gap-2 cursor-pointer hover:bg-yellow-100 transition-colors min-w-[180px]">
+          <div id="search-form" onclick="openSearchDrawer(event)" role="button" tabindex="0" class="flex-1 max-w-sm lg:max-w-md flex items-center bg-[#fdfdfd] border-[2px] border-black shadow-[3px_3px_0px_#000000] px-3 py-1.5 gap-2 cursor-pointer hover:bg-yellow-100 transition-colors min-w-[180px]">
             <span class="material-symbols-outlined text-black text-[18px] font-bold flex-shrink-0">search</span>
             <input id="search-input" onclick="openSearchDrawer(event)" class="w-full bg-transparent font-data-mono text-xs text-black font-bold placeholder:text-black/60 outline-none cursor-pointer truncate" placeholder="SEARCH SONG OR MOOD (PRESS ENTER)..." type="text" readonly/>
             <span class="px-2 py-0.5 bg-black text-yellow-300 border border-black font-data-mono text-[9px] font-black uppercase hidden lg:inline-block">SEARCH ⚡</span>
@@ -825,18 +825,18 @@
         <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-start md:justify-end flex-shrink-0">
           
           <!-- 1. Vinyl Mode (Active indicator) -->
-          <button id="mode-vinyl-btn" class="relative px-3.5 py-1.5 bg-yellow-300 text-black border-[2.5px] border-black font-headline-sm text-xs font-black uppercase tracking-tight shadow-[3px_3px_0px_#000000] hover:bg-yellow-400 hover:translate-x-0.5 hover:translate-y-0.5 transition-all whitespace-nowrap cursor-pointer" type="button">
+          <button id="mode-vinyl-btn" class="relative px-3.5 py-1.5 bg-[#ffe600] text-black border-[2.5px] border-black font-headline-sm text-xs font-black uppercase tracking-tight shadow-[3px_3px_0px_#000000] hover:bg-yellow-400 hover:translate-x-0.5 hover:translate-y-0.5 transition-all whitespace-nowrap cursor-pointer" type="button">
             <span class="flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full bg-red-600 border border-black animate-pulse flex-shrink-0"></span>
               <span>[ ⏺ VINYL ]</span>
             </span>
-            <span class="absolute -top-2.5 -right-1 px-1 bg-lime-400 text-black border-[1.5px] border-black font-data-mono text-[8px] font-black rotate-6 hidden sm:inline-block shadow-[1px_1px_0px_#000000]">
+            <span class="absolute -top-2.5 -right-1 px-1 bg-[#a3e635] text-black border-[1.5px] border-black font-data-mono text-[8px] font-black rotate-6 hidden sm:inline-block shadow-[1px_1px_0px_#000000]">
               PRIMARY
             </span>
           </button>
 
           <!-- 2. Miniplayer Mode -->
-          <button id="mode-miniplayer-btn" class="px-3.5 py-1.5 bg-white text-black hover:bg-yellow-200 border-[2.5px] border-black font-headline-sm text-xs font-black uppercase tracking-tight shadow-[3px_3px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all whitespace-nowrap cursor-pointer" type="button" title="Open floating always-on-top miniplayer">
+          <button id="mode-miniplayer-btn" class="px-3.5 py-1.5 bg-[#ffffff] text-black hover:bg-yellow-200 border-[2.5px] border-black font-headline-sm text-xs font-black uppercase tracking-tight shadow-[3px_3px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all whitespace-nowrap cursor-pointer" type="button" title="Open floating always-on-top miniplayer">
             <span class="flex items-center gap-1.5">
               <span class="material-symbols-outlined text-[16px] text-black font-bold flex-shrink-0">picture_in_picture_alt</span>
               <span>[ 🪟 MINIPLAYER ]</span>
@@ -844,7 +844,7 @@
           </button>
 
           <!-- 3. Groove Together (Jam Room) -->
-          <button id="groove-together-btn" onclick="openTogetherModal()" class="relative px-3.5 py-1.5 bg-lime-400 text-black border-[2.5px] border-black font-headline-sm text-xs uppercase font-black tracking-tight shadow-[3px_3px_0px_#000000] hover:bg-lime-300 hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer whitespace-nowrap" type="button" title="Groove Together: Shared Jam Room">
+          <button id="groove-together-btn" onclick="openTogetherModal()" class="relative px-3.5 py-1.5 bg-[#a3fa00] text-black border-[2.5px] border-black font-headline-sm text-xs uppercase font-black tracking-tight shadow-[3px_3px_0px_#000000] hover:bg-lime-400 hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer whitespace-nowrap" type="button" title="Groove Together: Shared Jam Room">
             <span class="flex items-center gap-1.5">
               <span id="together-live-dot" class="w-2.5 h-2.5 rounded-full bg-black flex-shrink-0"></span>
               <span class="material-symbols-outlined text-[17px] text-black font-bold flex-shrink-0">groups</span>
@@ -853,7 +853,7 @@
           </button>
 
           <!-- 4. MongoDB Account / Login -->
-          <button id="auth-account-btn" onclick="openAuthModal()" class="px-3.5 py-1.5 bg-amber-200 text-black border-[2.5px] border-black font-headline-sm text-xs uppercase font-black tracking-tight shadow-[3px_3px_0px_#000000] hover:bg-amber-300 hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer whitespace-nowrap" type="button" title="MongoDB Account & Cloud Playlists">
+          <button id="auth-account-btn" onclick="openAuthModal()" class="px-3.5 py-1.5 bg-[#ffedd5] text-black border-[2.5px] border-black font-headline-sm text-xs uppercase font-black tracking-tight shadow-[3px_3px_0px_#000000] hover:bg-amber-200 hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer whitespace-nowrap" type="button" title="MongoDB Account & Cloud Playlists">
             <span class="flex items-center gap-1.5">
               <span id="auth-user-badge" class="w-2.5 h-2.5 rounded-full bg-emerald-600 border border-black flex-shrink-0"></span>
               <span class="material-symbols-outlined text-[17px] text-black font-bold flex-shrink-0">account_circle</span>
