@@ -1,23 +1,16 @@
 {
-  "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "server.js"
+      "source": "/api/(.*)",
+      "destination": "/api"
     },
     {
-      "src": "/login",
-      "dest": "login.html"
+      "source": "/login",
+      "destination": "/login.html"
     },
     {
-      "src": "/(.*)",
-      "dest": "index.html"
+      "source": "/((?!api|login).*)/?",
+      "destination": "/index.html"
     }
   ]
 }

@@ -989,10 +989,15 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-server.listen(PORT, () => {
-  console.log(`\n======================================================`);
-  console.log(`🎧 GROOVE.RAW // VINYL_OS running at: http://localhost:${PORT}`);
-  console.log(`📡 Ready for YouTube streaming & AI mood search!`);
-  console.log(`🤝 Groove Together Rooms (WebSocket) ready!`);
-  console.log(`======================================================\n`);
-});
+// Only listen on port if not running in serverless environment
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  server.listen(PORT, () => {
+    console.log(`\n======================================================`);
+    console.log(`🎧 GROOVE.RAW // VINYL_OS running at: http://localhost:${PORT}`);
+    console.log(`📡 Ready for YouTube streaming & AI mood search!`);
+    console.log(`🤝 Groove Together Rooms (WebSocket) ready!`);
+    console.log(`======================================================\n`);
+  });
+}
+
+export default app;
